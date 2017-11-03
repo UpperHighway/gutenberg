@@ -1,20 +1,19 @@
 /**
  * External dependencies
  */
-import { isEmpty, reduce, isObject, castArray, compact, startsWith } from 'lodash';
+import { isEmpty, reduce, castArray, compact, startsWith } from 'lodash';
 import { html as beautifyHtml } from 'js-beautify';
-import classnames from 'classnames';
 
 /**
  * WordPress dependencies
  */
-import { Component, createElement, renderToString, cloneElement, Children } from '@wordpress/element';
+import { Component, createElement, renderToString } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
 import { getBlockType, getUnknownTypeHandlerName } from './registration';
-import { applyFilters } from '../hooks';
+// import { applyFilters } from '../hooks';
 
 /**
  * Returns the block's default classname from its name
@@ -31,12 +30,11 @@ export function getBlockDefaultClassname( blockName ) {
  * Given a block type containg a save render implementation and attributes, returns the
  * static markup to be saved.
  *
- * @param  {Object} blockType  Block type
- * @param  {Object} attributes Block attributes
- * @return {string}            Save content
+ * @param  {Object}               save       Block type savee function
+ * @param  {Object}               attributes Block attributes
+ * @return {string}                          Save content
  */
-export function getSaveContent( blockType, attributes ) {
-	const { save, className = getBlockDefaultClassname( blockType.name ) } = blockType;
+export function getSaveContent( save, attributes ) {
 	let saveContent;
 
 	if ( save.prototype instanceof Component ) {
@@ -50,7 +48,7 @@ export function getSaveContent( blockType, attributes ) {
 		}
 	}
 
-	const addExtraContainerProps = ( element ) => {
+	/* const addExtraContainerProps = ( element ) => {
 		if ( ! element || ! isObject( element ) ) {
 			return element;
 		}
@@ -69,10 +67,10 @@ export function getSaveContent( blockType, attributes ) {
 
 		return cloneElement( element, props );
 	};
-	const contentWithClassName = Children.map( saveContent, addExtraContainerProps );
+	const contentWithClassName = Children.map( saveContent, addExtraContainerProps );*/
 
 	// Otherwise, infer as element
-	return renderToString( contentWithClassName );
+	return renderToString( saveContent );
 }
 
 /**
@@ -157,7 +155,7 @@ export function getBlockContent( block ) {
 	let saveContent = block.originalContent;
 	if ( block.isValid ) {
 		try {
-			saveContent = getSaveContent( blockType, block.attributes );
+			saveContent = getSaveContent( blockType.save, block.attributes );
 		} catch ( error ) {}
 	}
 
@@ -167,15 +165,18 @@ export function getBlockContent( block ) {
 /**
  * Returns the content of a block, including comment delimiters.
  *
- * @param  {String} rawBlockName  Block name
- * @param  {Object} attributes    Block attributes
- * @param  {String} content       Block save content
- * @return {String}               Comment-delimited block content
+ * @param  {String}  rawBlockName  Block name
+ * @param  {Object}  attributes    Block attributes
+ * @param  {String}  content       Block save content
+ * @param  {Number?} version       Block version
+ * @return {String}                Comment-delimited block content
  */
-export function getCommentDelimitedContent( rawBlockName, attributes, content ) {
+export function getCommentDelimitedContent( rawBlockName, attributes, content, version ) {
 	const serializedAttributes = ! isEmpty( attributes ) ?
 		serializeAttributes( attributes ) + ' ' :
 		'';
+
+	const serializedVersion = version ? `v${ version } ` : '';
 
 	// strip core blocks of their namespace prefix
 	const blockName = startsWith( rawBlockName, 'core/' ) ?
@@ -183,11 +184,11 @@ export function getCommentDelimitedContent( rawBlockName, attributes, content ) 
 		rawBlockName;
 
 	if ( ! content ) {
-		return `<!-- wp:${ blockName } ${ serializedAttributes }/-->`;
+		return `<!-- wp:${ blockName } ${ serializedAttributes }${ serializedVersion }/-->`;
 	}
 
 	return (
-		`<!-- wp:${ blockName } ${ serializedAttributes }-->\n` +
+		`<!-- wp:${ blockName } ${ serializedAttributes }${ serializedVersion }-->\n` +
 		content +
 		`\n<!-- /wp:${ blockName } -->`
 	);
@@ -224,7 +225,7 @@ export function serializeBlock( block ) {
 			return saveContent;
 
 		default:
-			return getCommentDelimitedContent( blockName, saveAttributes, saveContent );
+			return getCommentDelimitedContent( blockName, saveAttributes, saveContent, blockType.version );
 	}
 }
 

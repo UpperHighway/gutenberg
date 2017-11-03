@@ -228,6 +228,7 @@ Block_Balanced
     return array(
       'blockName'  => $s['blockName'],
       'attrs'      => $s['attrs'],
+			'version'    => $s['version'],
       'innerBlocks'  => $innerBlocks,
       'innerHTML'  => implode( '', $innerHTML ),
     );
@@ -240,6 +241,7 @@ Block_Balanced
     return {
       blockName: s.blockName,
       attrs: s.attrs,
+      version: s.version || 1,
       innerBlocks: innerBlocks,
       innerHTML: innerHTML.join( '' )
     };
@@ -249,18 +251,23 @@ Block_Start
   = "<!--" WS+ "wp:" blockName:Block_Name WS+ attrs:(a:Block_Attributes WS+ {
     /** <?php return $a; ?> **/
     return a;
+  })? version:( v:Block_Version WS+ {
+    /** <?php return $v; ?> **/
+    return v;
   })? "-->"
   {
     /** <?php
     return array(
       'blockName' => $blockName,
       'attrs'     => $attrs,
+      'version'  => $version,
     );
     ?> **/
 
     return {
       blockName: blockName,
-      attrs: attrs
+      attrs: attrs,
+      version: version
     };
   }
 
@@ -300,6 +307,13 @@ Block_Attributes
   {
     /** <?php return json_decode( $attrs, true ); ?> **/
     return maybeJSON( attrs );
+  }
+
+Block_Version
+  = "v" v:$([0-9]*)
+  {
+    /** <?php return (int) $v; ?> **/
+    return parseInt( v, 10 );
   }
 
 WS
